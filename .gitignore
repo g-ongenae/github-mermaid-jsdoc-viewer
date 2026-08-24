@@ -1,0 +1,9 @@
+# Browser-specific copy — generated from manifest.{firefox,chrome}.json
+manifest.json
+
+# Dependencies (dev only — not part of the extension)
+node_modules/
+
+# Built at install/build time from the pako dependency (see scripts/build-pako.js)
+pako_deflate.min.js
+PAKO_LICENSE

@@ -1,0 +1,5 @@
+node_modules/
+docs/
+manifest.json
+*.svg
+pako_deflate.min.js

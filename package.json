@@ -1,0 +1,37 @@
+{
+  "name": "github-mermaid-jsdoc-viewer",
+  "version": "1.0.0",
+  "description": "A browser extension that finds Mermaid diagrams inside JSDoc comments while browsing source files on GitHub, and lets you preview or open them in the Mermaid Live editor.",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/g-ongenae/github-mermaid-jsdoc-viewer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/g-ongenae/github-mermaid-jsdoc-viewer/issues"
+  },
+  "homepage": "https://github.com/g-ongenae/github-mermaid-jsdoc-viewer#readme",
+  "engines": {
+    "node": ">=26"
+  },
+  "scripts": {
+    "build": "node scripts/build-pako.js",
+    "postinstall": "npm run build",
+    "lint": "eslint --no-warn-ignored *.js",
+    "lint:fix": "eslint --no-warn-ignored *.js --fix",
+    "format": "prettier --write '*.{js,json,css,html,md}'",
+    "format:check": "prettier --check '*.{js,json,css,html,md}'",
+    "check": "npm run lint && npm run format:check"
+  },
+  "dependencies": {
+    "pako": "^2.1.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.1.0",
+    "globals": "^17.4.0",
+    "prettier": "^3.8.1"
+  }
+}

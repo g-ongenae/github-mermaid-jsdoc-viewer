@@ -1,0 +1,123 @@
+name: Publish Extension
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  lint-and-format:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+      - run: npm ci
+      - name: ESLint
+        run: npm run lint
+      - name: Prettier
+        run: npm run format:check
+
+  check-secrets:
+    name: Check available secrets
+    needs: lint-and-format
+    runs-on: ubuntu-latest
+    outputs:
+      has-firefox: ${{ steps.check.outputs.has-firefox }}
+      has-chrome: ${{ steps.check.outputs.has-chrome }}
+    steps:
+      - name: Check which secrets are configured
+        id: check
+        run: |
+          if [[ -n "${{ secrets.FIREFOX_JWT_ISSUER }}" && -n "${{ secrets.FIREFOX_JWT_SECRET }}" ]]; then
+            echo "has-firefox=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has-firefox=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping Firefox publish — FIREFOX_JWT_ISSUER and FIREFOX_JWT_SECRET not set"
+          fi
+          if [[ -n "${{ secrets.CHROME_EXTENSION_ID }}" && -n "${{ secrets.CHROME_CLIENT_ID }}" && -n "${{ secrets.CHROME_CLIENT_SECRET }}" && -n "${{ secrets.CHROME_REFRESH_TOKEN }}" ]]; then
+            echo "has-chrome=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has-chrome=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping Chrome publish — CHROME_EXTENSION_ID, CHROME_CLIENT_ID, CHROME_CLIENT_SECRET, and CHROME_REFRESH_TOKEN not set"
+          fi
+
+  build:
+    name: Build extension packages
+    runs-on: ubuntu-latest
+    needs: check-secrets
+    if: needs.check-secrets.outputs.has-firefox == 'true' || needs.check-secrets.outputs.has-chrome == 'true'
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+
+      - name: Build pako_deflate.min.js and PAKO_LICENSE
+        run: npm ci
+
+      - name: Build Firefox package
+        run: |
+          cp manifest.firefox.json manifest.json
+          zip -r extension-firefox.zip manifest.json content_script.js viewer.css pako_deflate.min.js popup.html popup.js icon.svg LICENSE PAKO_LICENSE
+
+      - name: Build Chrome package
+        run: |
+          cp manifest.chrome.json manifest.json
+          zip -r extension-chrome.zip manifest.json content_script.js viewer.css pako_deflate.min.js popup.html popup.js icon.svg LICENSE PAKO_LICENSE
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: extension-firefox
+          path: extension-firefox.zip
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: extension-chrome
+          path: extension-chrome.zip
+
+  publish-firefox:
+    name: Publish to Firefox Add-ons
+    runs-on: ubuntu-latest
+    needs: [check-secrets, build]
+    if: needs.check-secrets.outputs.has-firefox == 'true'
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: extension-firefox
+
+      - name: Install web-ext
+        run: npm install -g web-ext
+
+      - name: Extract and submit
+        run: |
+          unzip extension-firefox.zip -d extension
+          cd extension
+          web-ext sign \
+            --api-key="${{ secrets.FIREFOX_JWT_ISSUER }}" \
+            --api-secret="${{ secrets.FIREFOX_JWT_SECRET }}" \
+            --channel=listed
+
+  publish-chrome:
+    name: Publish to Chrome Web Store
+    runs-on: ubuntu-latest
+    needs: [check-secrets, build]
+    if: needs.check-secrets.outputs.has-chrome == 'true'
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: extension-chrome
+
+      - name: Upload to Chrome Web Store
+        uses: mobilefirstllc/cws-publish@v2
+        with:
+          action: publish
+          extension_id: ${{ secrets.CHROME_EXTENSION_ID }}
+          client_id: ${{ secrets.CHROME_CLIENT_ID }}
+          client_secret: ${{ secrets.CHROME_CLIENT_SECRET }}
+          refresh_token: ${{ secrets.CHROME_REFRESH_TOKEN }}
+          zip_file: extension-chrome.zip

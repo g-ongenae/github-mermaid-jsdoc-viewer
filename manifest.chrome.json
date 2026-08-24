@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "GitHub Mermaid JSDoc Viewer",
+  "version": "1.0.0",
+  "description": "Open and preview Mermaid diagrams found in JSDoc comments while browsing source files on GitHub.",
+  "permissions": ["activeTab"],
+  "host_permissions": ["https://github.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://github.com/*/blob/*", "https://github.com/*/pull/*", "https://github.com/*/commit/*"],
+      "js": ["pako_deflate.min.js", "content_script.js"],
+      "css": ["viewer.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "GitHub Mermaid JSDoc Viewer",
+    "default_icon": {
+      "48": "icon.svg"
+    },
+    "default_popup": "popup.html"
+  }
+}
