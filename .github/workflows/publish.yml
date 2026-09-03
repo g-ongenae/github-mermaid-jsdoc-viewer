@@ -63,12 +63,12 @@ jobs:
       - name: Build Firefox package
         run: |
           cp manifest.firefox.json manifest.json
-          zip -r extension-firefox.zip manifest.json content_script.js viewer.css pako_deflate.min.js popup.html popup.js icon.svg LICENSE PAKO_LICENSE
+          zip -r extension-firefox.zip manifest.json content_script.js viewer.css pako_deflate.min.js popup.html popup.js icons LICENSE PAKO_LICENSE
 
       - name: Build Chrome package
         run: |
           cp manifest.chrome.json manifest.json
-          zip -r extension-chrome.zip manifest.json content_script.js viewer.css pako_deflate.min.js popup.html popup.js icon.svg LICENSE PAKO_LICENSE
+          zip -r extension-chrome.zip manifest.json content_script.js viewer.css pako_deflate.min.js popup.html popup.js icons LICENSE PAKO_LICENSE
 
       - uses: actions/upload-artifact@v7
         with:
