@@ -15,7 +15,8 @@ popup.html / popup.js   — Extension popup (version display, status check)
 manifest.chrome.json    — Chrome/Edge/Brave (MV3)
 manifest.firefox.json   — Firefox (MV2)
 manifest.json           — Generated copy of the active manifest (gitignored)
-icon.svg                — Extension icon (shared design with mermaid-jsdoc-viewer — see "Icon" below)
+icon.svg                — Extension icon source (shared design with mermaid-jsdoc-viewer — see "Icon" below)
+icons/icon-{16,32,48,96,128}.png — PNG renders of icon.svg referenced by both manifests (Chrome rejects SVG icons); committed
 PRIVACY.md              — Privacy policy linked from both store listings; keep in sync with what the code actually sends
 LICENSE                 — MIT license for this project
 PAKO_LICENSE            — pako's license, also built by scripts/build-pako.js — not committed
@@ -46,7 +47,7 @@ Instead: ask for (or use) a saved copy of the _actual rendered_ page HTML — in
 
 ## Icon
 
-Deliberately the same SVG as [`mermaid-jsdoc-viewer`](https://github.com/g-ongenae/mermaid-jsdoc-viewer)'s `assets/icon.svg` — same author, same goal (view a mermaid diagram from a JSDoc comment), different context (browser vs. editor). Keep them in sync if one is redesigned.
+Deliberately the same SVG as [`mermaid-jsdoc-viewer`](https://github.com/g-ongenae/mermaid-jsdoc-viewer)'s `assets/icon.svg` — same author, same goal (view a mermaid diagram from a JSDoc comment), different context (browser vs. editor). Keep them in sync if one is redesigned, and re-render `icons/*.png` (16/32/48/96/128) whenever `icon.svg` changes — the SVG uses `DejaVu Sans Mono` text for the `/**` `*/` glyphs, so the renderer needs that font available (e.g. `@resvg/resvg-js` with the `dejavu-fonts-ttf` npm package's TTFs) or the text silently disappears.
 
 ## Code conventions
 

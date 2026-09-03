@@ -36,7 +36,7 @@ flowchart LR
     E -->|Open in Mermaid Live| D["mermaid.live<br/>full editor"]
 ````
 
-Extension files: `manifest.{firefox,chrome}.json` · `content_script.js` · `viewer.css` · `pako_deflate.min.js`
+Extension files: `manifest.{firefox,chrome}.json` · `content_script.js` · `viewer.css` · `pako_deflate.min.js` · `popup.{html,js}` · `icons/`
 
 Permissions required: `activeTab` (for the popup's status check) · host access to `github.com` (to run the content script on blob, PR, and commit pages)
 
@@ -149,7 +149,8 @@ github-mermaid-jsdoc-viewer/
 ├── scripts/build-pako.js   # Copies pako's browser build into place at install time
 ├── pako_deflate.min.js     # Built by `npm install`/`npm run build` — not committed
 ├── popup.html / popup.js   # Toolbar popup (extension info, status check)
-├── icon.svg                # Extension icon (shared design with mermaid-jsdoc-viewer)
+├── icon.svg                # Extension icon source (shared design with mermaid-jsdoc-viewer)
+├── icons/                  # PNG renders of icon.svg (16, 32, 48, 96, 128) referenced by the manifests
 ├── PRIVACY.md              # Privacy policy (linked from the store listings)
 ├── LICENSE                 # MIT license for this project
 └── PAKO_LICENSE            # pako's license — also built, not committed
