@@ -9,12 +9,15 @@
         padding: 0;
       }
       body {
-        width: 300px;
+        width: 320px;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         font-size: 13px;
         color: #1f2328;
-        padding: 16px;
-        overflow: hidden;
+        padding: 14px 16px;
+        /* Firefox caps popups at 600px: never clip, scroll if we ever exceed it. */
+        max-height: 580px;
+        overflow-y: auto;
+        overflow-x: hidden;
       }
       h1 {
         font-size: 15px;
@@ -102,33 +105,26 @@
     <h1>GitHub Mermaid JSDoc Viewer</h1>
     <div class="version" id="version"></div>
     <div class="description">
-      Finds Mermaid diagrams inside JSDoc comments while you browse source files on GitHub, and lets you preview or open
-      them in the Mermaid Live editor.
+      Previews Mermaid diagrams found in JSDoc comments (and Markdown fences) on GitHub — in files, pull requests,
+      commits and compare views.
     </div>
 
     <div class="section">
       <div class="section-title">Quick start</div>
       <ol class="usage-steps">
+        <li>Open a <code class="shortcut">.js/.ts</code> or Markdown file, a PR, a commit or a compare view</li>
         <li>
-          Open a <code class="shortcut">.js/.ts</code> or Markdown file on GitHub, or a PR "Files changed", commit or
-          compare page
+          Click the 📊 badge next to a <code class="shortcut">```mermaid</code> fence to preview it (🔀 = the diagram
+          changed — shows before/after)
         </li>
-        <li>A 📊 badge appears next to the line number of each <code class="shortcut">```mermaid</code> fence</li>
-        <li>Click it to preview the diagram (🔀 = the diagram changed in this diff — shows before/after)</li>
-        <li>Click <strong>Open in Mermaid Live ↗</strong> to edit it in the full editor</li>
+        <li>Scroll to zoom, drag to pan, double-click to reset — or <strong>Open in Mermaid Live ↗</strong></li>
       </ol>
-    </div>
-
-    <div class="section">
-      <div class="section-title">Preview controls</div>
-      <div class="description">Scroll to zoom, drag to pan, double-click to reset.</div>
     </div>
 
     <div class="section">
       <div class="section-title">Privacy</div>
       <div class="description">
-        Nothing is collected. The diagram text is sent to mermaid.ink / mermaid.live only when you click a badge or
-        link.
+        Nothing is collected. The diagram text is sent to mermaid.ink / mermaid.live only when you click.
       </div>
     </div>
 

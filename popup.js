@@ -1,32 +1,40 @@
+// Prefer the promise-based `browser` namespace (Firefox); Chrome MV3 `chrome.*` also returns promises.
+const ext = (typeof browser !== 'undefined' && browser) || chrome;
+
 // Populate version from manifest
-const manifest = chrome?.runtime?.getManifest?.() || browser?.runtime?.getManifest?.();
+const manifest = ext?.runtime?.getManifest?.();
 if (manifest) {
   document.getElementById('version').textContent = `v${manifest.version}`;
 }
 
-// Check if the current tab is a GitHub page the content script runs on: a
-// blob page for a supported file (JS/TS or Markdown), or a PR / commit /
-// compare page.
-async function checkStatus() {
+function setStatus(active, message) {
   const statusEl = document.getElementById('status');
+  statusEl.replaceChildren();
+  const dot = document.createElement('span');
+  dot.className = `status-dot ${active ? 'active' : 'inactive'}`;
+  statusEl.append(dot, ` ${message}`);
+}
+
+const NOT_HERE = 'Open a JS/TS or Markdown file, a PR, a commit or a compare view on GitHub';
+
+// Ping the content script instead of reading the tab URL: that needs no
+// permission at all, and it reflects GitHub's client-side (Turbo) navigation,
+// which never reloads the page — the script itself knows where it is.
+async function checkStatus() {
   try {
-    const queryFn =
-      (typeof chrome !== 'undefined' && chrome.tabs?.query) || (typeof browser !== 'undefined' && browser.tabs?.query);
-    const tabs = queryFn ? await queryFn({ active: true, currentWindow: true }) : [];
-    const url = tabs?.[0]?.url || '';
-    const isSupportedBlob =
-      /^https:\/\/github\.com\/[^/]+\/[^/]+\/blob\/.+\.(m?jsx?|tsx?|md|markdown|mdx)(\?|#|$)/i.test(url);
-    const isDiffPage = /^https:\/\/github\.com\/[^/]+\/[^/]+\/(pull|commit|compare)\//i.test(url);
-    if (isSupportedBlob) {
-      statusEl.innerHTML = '<span class="status-dot active"></span> Active on this file';
-    } else if (isDiffPage) {
-      statusEl.innerHTML = '<span class="status-dot active"></span> Active on this diff';
+    const [tab] = await ext.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id) throw new Error('No active tab');
+    const reply = await ext.tabs.sendMessage(tab.id, { type: 'gmjv-ping' });
+    if (!reply?.ok) {
+      setStatus(false, NOT_HERE);
+    } else if (reply.badges > 0) {
+      setStatus(true, `Active — ${reply.badges} mermaid diagram${reply.badges === 1 ? '' : 's'} found on this page`);
     } else {
-      statusEl.innerHTML =
-        '<span class="status-dot inactive"></span> Open a JS/TS or Markdown file, a PR, a commit or a compare view on GitHub';
+      setStatus(true, 'Active — no mermaid diagram found on this page (yet)');
     }
   } catch {
-    statusEl.innerHTML = '<span class="status-dot inactive"></span> Open a GitHub source file to get started';
+    // No receiver → content script not injected → not a github.com tab
+    setStatus(false, NOT_HERE);
   }
 }
 

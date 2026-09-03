@@ -1,5 +1,8 @@
 // content_script.js
-// Injected on GitHub blob pages and PR/commit/compare diff pages. Finds ```mermaid
+// Injected on every github.com page (GitHub navigates client-side with
+// Turbo, so a script matched only on /blob/, /pull/… URLs would never be
+// injected when the user reaches such a page from elsewhere on the site);
+// it only does work on blob, PR, commit and compare pages. Finds ```mermaid
 // fenced code blocks — inside JSDoc comments in JS/TS files, or as plain
 // fenced blocks in Markdown files — and overlays a small floating badge next
 // to the line number that opens a diagram preview.
@@ -26,6 +29,14 @@
     if (JSDOC_EXT.test(path)) return 'jsdoc';
     if (MARKDOWN_EXT.test(path)) return 'markdown';
     return null;
+  }
+
+  // Pages the extension does anything on: a blob page for a supported file,
+  // or a PR / commit / compare page. Everything else on github.com is left
+  // untouched (the script is injected site-wide because of Turbo navigation).
+  function isSupportedPage(pathname = location.pathname) {
+    if (/^\/[^/]+\/[^/]+\/(pull|commit|compare)\//.test(pathname)) return true;
+    return /^\/[^/]+\/[^/]+\/blob\//.test(pathname) && getFileKind(pathname) !== null;
   }
 
   // ── JSDoc / mermaid block parsing ──────────────────────────────────────
@@ -624,8 +635,10 @@
 
   function scan() {
     const seenKeys = new Set();
-    scanBlobPage(seenKeys);
-    scanDiffPage(seenKeys);
+    if (isSupportedPage()) {
+      scanBlobPage(seenKeys);
+      scanDiffPage(seenKeys);
+    }
     removeStaleBadges(seenKeys);
     repositionAllBadges();
   }
@@ -683,4 +696,14 @@
   // `capture: true` also catches scrolling inside a nested scrollable panel,
   // not just the window/document itself.
   document.addEventListener('scroll', scheduleReposition, { capture: true, passive: true });
+
+  // The toolbar popup pings us to learn whether the current page is one we
+  // work on and how many diagrams were found — it has no permission to read
+  // the tab's URL itself (and none is needed).
+  const runtime =
+    (typeof browser !== 'undefined' && browser.runtime) || (typeof chrome !== 'undefined' && chrome.runtime);
+  runtime?.onMessage?.addListener((msg, _sender, sendResponse) => {
+    if (msg?.type !== 'gmjv-ping') return;
+    sendResponse({ ok: isSupportedPage(), badges: badges.size });
+  });
 })();
