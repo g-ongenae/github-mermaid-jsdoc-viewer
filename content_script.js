@@ -348,7 +348,8 @@
     }
     entry.anchor = anchor;
     entry.el.title = changed ? 'Display mermaid diagram (changed — compare before/after)' : 'Display mermaid diagram';
-    entry.el.textContent = changed ? '🔀' : '📊';
+    const glyph = changed ? '🔀' : '📊';
+    if (entry.el.textContent !== glyph) entry.el.textContent = glyph;
     entry.el.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -622,7 +623,16 @@
 
   // The react code view / diff hydration can also finish after the initial
   // script run, and diffs lazy-load per file as you scroll.
-  const observer = new MutationObserver(() => {
+  //
+  // Mutations inside our own badge layer / modal are ignored — otherwise
+  // every badge update made by a scan would schedule the next scan, and the
+  // page would be rescanned every 250 ms for as long as a badge exists.
+  function isOwnMutation(mutation) {
+    const el = mutation.target.nodeType === Node.ELEMENT_NODE ? mutation.target : mutation.target.parentElement;
+    return Boolean(el?.closest('#gmjv-badge-layer, #gmjv-overlay'));
+  }
+  const observer = new MutationObserver((mutations) => {
+    if (mutations.every(isOwnMutation)) return;
     checkNavigation();
     scheduleScan();
   });
