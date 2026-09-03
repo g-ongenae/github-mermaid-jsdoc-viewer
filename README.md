@@ -16,7 +16,7 @@ Documenting architecture or flow logic with a ` ```mermaid ` block inside a JSDo
 
 ## Features
 
-- Scans `/** ... */` JSDoc comments in `.js`/`.jsx`/`.ts`/`.tsx` files, and plain fenced blocks in `.md`/`.markdown`/`.mdx` files, for ` ```mermaid ` code blocks — on blob (source file) pages, and on PR "Files changed" / commit diff pages
+- Scans `/** ... */` JSDoc comments in `.js`/`.jsx`/`.ts`/`.tsx` files, and plain fenced blocks in `.md`/`.markdown`/`.mdx` files, for ` ```mermaid ` code blocks — on blob (source file) pages, and on PR "Files changed", commit and compare diff pages
 - Overlays a small 📊 badge next to the line number of each detected block; click it to open a zoomable/pannable preview (via [mermaid.ink](https://mermaid.ink)), which also links to the full mermaid.live editor
 - On diff pages, if the diagram _itself_ was edited (not just surrounding code), the badge turns into 🔀 and clicking it shows the diagram **before and after side by side** — a red-tinted "Before" pane and a green-tinted "After" pane, each with its own "Open in Mermaid Live" link
 - Preview supports scroll-to-zoom, drag-to-pan, double-click-to-reset, and a +/−/⟳ toolbar
@@ -38,7 +38,7 @@ flowchart LR
 
 Extension files: `manifest.{firefox,chrome}.json` · `content_script.js` · `viewer.css` · `pako_deflate.min.js` · `popup.{html,js}` · `icons/`
 
-Permissions required: `activeTab` (for the popup's status check) only. The content script is declared for `https://github.com/*/blob/*`, `/pull/*` and `/commit/*` — no other host permission is requested.
+Permissions required: `activeTab` (for the popup's status check) only. The content script is declared for `https://github.com/*/blob/*`, `/pull/*`, `/commit/*` and `/compare/*` — no other host permission is requested.
 
 ---
 
@@ -117,7 +117,7 @@ Run `npm install` first so `pako_deflate.min.js` and `PAKO_LICENSE` exist to inc
 
 ## Usage
 
-1. Open any `.js`/`.jsx`/`.ts`/`.tsx` or Markdown file on GitHub — either the "blob" view (e.g. `github.com/org/repo/blob/main/src/foo.ts`; for Markdown, the code view via `?plain=1`, since the rendered view already draws the diagrams) or a PR's "Files changed" tab / a commit diff
+1. Open any `.js`/`.jsx`/`.ts`/`.tsx` or Markdown file on GitHub — either the "blob" view (e.g. `github.com/org/repo/blob/main/src/foo.ts`; for Markdown, the code view via `?plain=1`, since the rendered view already draws the diagrams) or a PR's "Files changed" tab, a commit diff or a compare view
 2. Scroll to a JSDoc comment (or, in Markdown, any spot) containing a ` ```mermaid ` fenced code block
 3. A small badge appears next to that line's line number — 📊 for a normal preview, or 🔀 if the diagram itself changed in this diff
 4. Click it to open the preview:
@@ -128,13 +128,13 @@ Run `npm install` first so `pako_deflate.min.js` and `PAKO_LICENSE` exist to inc
 
 ## How it works
 
-1. **Reads the source.** On blob pages, the react code view sometimes embeds the file's raw lines as JSON to hydrate itself (`script[data-target="react-app.embeddedData"]`, `payload['codeViewBlobLayoutRoute.StyledBlob'].rawLines`); large files leave this `null` and fetch content client-side instead, so there's a DOM fallback reading each `[data-testid="code-cell"][data-line-number]` element (or `id="LC<n>"` on older GitHub). On PR "Files changed" / commit diff pages, each file's diff is a `<table>`-based grid inside `<div role="region" id="diff-<hash>">`; the content script reads each row's "new file" code cell (`td.diff-text-cell[data-diff-side="right"]`) and its `.diff-text-inner` text — and, for comparison, the "old file" side (`data-diff-side="left"`) the same way, since context rows carry both.
+1. **Reads the source.** On blob pages, the react code view sometimes embeds the file's raw lines as JSON to hydrate itself (`script[data-target="react-app.embeddedData"]`, `payload['codeViewBlobLayoutRoute.StyledBlob'].rawLines`); large files leave this `null` and fetch content client-side instead, so there's a DOM fallback reading each `[data-testid="code-cell"][data-line-number]` element (or `id="LC<n>"` on older GitHub). On PR "Files changed", commit and compare diff pages, each file's diff is a `<table>` with one row per line, but GitHub ships three different markups: the React PR view (`tr.diff-line-row`, line numbers in `td.new-diff-line-number[data-diff-side][data-line-number]`, text in `.diff-text-inner`), the React commit view (same rows, but two plain `td.diff-line-number` cells — old, then new — with the number as text) and the classic server-rendered compare view (`table.diff-table`, two `td.blob-num[data-line-number]` cells, text in `td.blob-code`). All three are supported. Context rows carry both numbers, so the "old file" side can be reconstructed the same way for comparison.
 2. **Finds mermaid blocks.** The same JSDoc-region + fence-tracking algorithm as [`mermaid-jsdoc-viewer`](https://github.com/g-ongenae/mermaid-jsdoc-viewer)'s VS Code extension, generalized to work over a (possibly gapped) list of `{lineNumber, text}` pairs — a diff's line numbers jump at hunk/file boundaries, and the parser treats any such gap as a reason to abandon whatever block it was mid-parsing rather than risk stitching unrelated lines together. A hunk that _starts_ on a ` * ...` comment-body line (GitHub's default three lines of context frequently begin right at the `* ```mermaid` fence, with the `/**` opener out of view) is assumed to already be inside a JSDoc comment. For Markdown files the JSDoc requirement is dropped and the fence is matched as a plain code block.
 3. **Detects a changed diagram.** On diff pages, once a block is found on the "new" side, the content script checks whether its ` ```mermaid `/` ``` ` fence lines are context rows (i.e. existed before the change too). If so, it reconstructs the same line range from the "old" side and compares the two — a mismatch means the diagram itself changed, triggering the before/after badge and modal instead of a single preview.
 4. **Encodes for mermaid.live/mermaid.ink.** Each diagram's source (old and/or new) is wrapped in the same JSON state object mermaid.live expects, deflated with [pako](https://github.com/nodeca/pako), and base64url-encoded — producing a `pako:<...>` fragment usable by both `mermaid.live/edit#pako:...` and `mermaid.ink/svg/pako:...`.
 5. **Overlays a badge.** Rather than inserting new elements into GitHub's own code/diff DOM (fragile, and any click inside that DOM can be intercepted by GitHub's own handlers), the content script computes the target line-number gutter element's `getBoundingClientRect()` and positions a small `position: fixed` badge next to it in a body-level overlay layer, recomputed on scroll/resize/rescan.
 
-> **Note:** GitHub's DOM (and embedded payload shape) is not a public API and has changed shape at least once already during this extension's development. If GitHub ships a UI redesign, `getBlobLinesFromEmbeddedPayload`/`getBlobLinesFromDom`/`getBlobLineAnchor` (blob pages) and `getDiffFileContainers`/`collectDiffEntries`/`getDiffLineNumberAnchor`/`extractDiffOldCode` (diff pages) in `content_script.js` are the functions to patch — they're intentionally isolated for that purpose. The selectors currently in place were verified against real saved GitHub page HTML, not guessed from memory.
+> **Note:** GitHub's DOM (and embedded payload shape) is not a public API and has changed shape at least once already during this extension's development. If GitHub ships a UI redesign, `getBlobLinesFromEmbeddedPayload`/`getBlobLinesFromDom`/`getBlobLineAnchor` (blob pages) and `getDiffFileContainers`/`getDiffRows`/`getRowLineNumber`/`getRowText`/`extractDiffOldCode` (diff pages) in `content_script.js` are the functions to patch — they're intentionally isolated for that purpose. The selectors currently in place were verified against real saved GitHub page HTML, not guessed from memory.
 
 ---
 
@@ -214,7 +214,7 @@ Add these in your repository's **Settings → Secrets and variables → Actions*
 
 ## Scope / limitations
 
-- On PR "Files changed" and commit diff pages, only the diff's _new_ content is scanned (context + added lines). A mermaid block that spans outside the visible diff hunk (e.g. only part of it changed, with the rest collapsed into an unexpanded context gap) won't be detected until that context is expanded — the parser deliberately refuses to stitch across a line-number gap rather than risk a corrupted diagram. Both the ` ```mermaid ` opener and the closing ` ``` ` must be visible in the hunk; the `/**` line of the enclosing JSDoc comment need not be.
+- On PR "Files changed", commit and compare diff pages, only the diff's _new_ content is scanned (context + added lines). A mermaid block that spans outside the visible diff hunk (e.g. only part of it changed, with the rest collapsed into an unexpanded context gap) won't be detected until that context is expanded — the parser deliberately refuses to stitch across a line-number gap rather than risk a corrupted diagram. Both the ` ```mermaid ` opener and the closing ` ``` ` must be visible in the hunk; the `/**` line of the enclosing JSDoc comment need not be. In practice: if a commit only edits the diagram's body, the opener is usually the line just above the hunk — click GitHub's "expand up" arrow once and the badge appears.
 - Only the unified diff view is supported, not the side-by-side split view.
 - Only `.js`, `.jsx`, `.ts`, `.tsx` (JSDoc comments) and `.md`, `.markdown`, `.mdx` (plain fences) files are scanned.
 - On a Markdown blob page GitHub renders the file (and its mermaid blocks) itself, so badges only appear in the code view (`?plain=1`). On diff pages they always appear — handy since GitHub's "rich diff" for Markdown renders the whole file rather than just the changed diagram.

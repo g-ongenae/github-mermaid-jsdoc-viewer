@@ -8,7 +8,7 @@ GitHub Mermaid JSDoc Viewer is a browser extension that finds ` ```mermaid ` fen
 
 **The extension does not collect, store, sell, or share any data.** There is no backend server, no analytics, no telemetry, no crash reporting, and no account.
 
-- It runs only on `https://github.com` pages whose URL matches a source file (`/blob/`), a pull request (`/pull/`) or a commit (`/commit/`).
+- It runs only on `https://github.com` pages whose URL matches a source file (`/blob/`), a pull request (`/pull/`), a commit (`/commit/`) or a branch comparison (`/compare/`).
 - Scanning happens entirely locally: the extension reads the source lines already rendered on the page you are viewing and looks for mermaid fences. Nothing is sent anywhere at this stage.
 - No GitHub login, token or API is used. The extension works the same on public and private repositories because it only reads what your browser has already displayed.
 
@@ -31,10 +31,10 @@ None. The extension uses no `localStorage`, `sessionStorage`, cookies, IndexedDB
 
 ## Permissions
 
-| Permission                                                                 | Why it is needed                                                                                                          |
-| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `activeTab`                                                                | Lets the toolbar popup read the current tab's URL to tell you whether the extension is active on this page. Nothing else. |
-| Content script on `https://github.com/*/blob/*`, `/pull/*` and `/commit/*` | Reads the code already rendered on those pages to find mermaid fences and overlays the badge and the preview modal.       |
+| Permission                                                                               | Why it is needed                                                                                                          |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `activeTab`                                                                              | Lets the toolbar popup read the current tab's URL to tell you whether the extension is active on this page. Nothing else. |
+| Content script on `https://github.com/*/blob/*`, `/pull/*`, `/commit/*` and `/compare/*` | Reads the code already rendered on those pages to find mermaid fences and overlays the badge and the preview modal.       |
 
 ## Third-party code
 
