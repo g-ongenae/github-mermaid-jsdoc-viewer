@@ -10,10 +10,12 @@
  * flowchart TD
  *   A[Order received] --> B{In stock?}
  *   B -- yes --> C[Charge payment]
- *   B -- no --> D[Back-order]
+ *   B -- no --> D{Is available for back-order?}
+ *   D -- yes --> H[Back-order]
+ *   D -- no --> G[Cancel]
  *   C --> E{Payment ok?}
  *   E -- yes --> F[Ship]
- *   E -- no --> G[Cancel]
+ *   E -- no --> G
  * ```
  *
  * @param {{ sku: string, quantity: number }} order
