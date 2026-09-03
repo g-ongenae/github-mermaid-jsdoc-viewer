@@ -37,7 +37,7 @@ npm run format         # prettier --write
 npm run format:check   # prettier --check
 ```
 
-There are no automated tests, but selector changes should not be guessed from memory — see "Verifying selector changes" below. Manual validation: load the extension, open a GitHub blob page and a PR "Files changed" page for a JS/TS file with a `mermaid` fence inside a JSDoc block, and check the badge appears next to the line number and opens the preview on click.
+There are no automated tests, but selector changes should not be guessed from memory — see "Verifying selector changes" below. Manual validation: load the extension, open a GitHub blob page and a PR "Files changed" page for a JS/TS file with a `mermaid` fence inside a JSDoc block (`examples/order-flow.js` in this repo is one), and check the badge appears next to the line number and opens the preview on click.
 
 ## Verifying selector changes
 
