@@ -1,5 +1,5 @@
 // content_script.js
-// Injected on GitHub blob pages and PR/commit diff pages. Finds ```mermaid
+// Injected on GitHub blob pages and PR/commit/compare diff pages. Finds ```mermaid
 // fenced code blocks — inside JSDoc comments in JS/TS files, or as plain
 // fenced blocks in Markdown files — and overlays a small floating badge next
 // to the line number that opens a diagram preview.
@@ -232,45 +232,86 @@
     });
   }
 
-  // ── Diff pages (PR "Files changed", commit diffs): reading source lines ─
-  // Each file's diff is a `<table>`-based grid inside
-  // `<div role="region" id="diff-<hash>" aria-labelledby="heading-...">`; the
-  // file path sits in the linked heading element (`<h3 id="heading-...">`).
-  // Each line row has a "new file" line-number cell
-  // (`td.new-diff-line-number[data-diff-side="right"]`) and a code cell
-  // (`td.diff-text-cell[data-diff-side="right"]`) sharing the same
-  // `data-line-number`. Deletion-only lines' code cell has
-  // `data-diff-side="left"` instead, so filtering on "right" naturally
-  // limits the scan to the diff's *new* content, not the old one.
+  // ── Diff pages (PR "Files changed", commit and compare diffs) ───────────
+  // GitHub currently serves three diff markups, all `<table>`-based with one
+  // `<tr>` per line, and all handled by the same three helpers below:
+  //  1. PR "Files changed" (React) — file container
+  //     `<div role="region" id="diff-<hash>" aria-labelledby="heading-...">`
+  //     (path = the heading's `<code>` text); rows `tr.diff-line-row`; line
+  //     numbers as `td.new-diff-line-number[data-diff-side][data-line-number]`
+  //     (a cell exists only for the sides that have a number); text in
+  //     `td.diff-text-cell .diff-text-inner`.
+  //  2. Commit pages (React) — same container minus the `id`, same rows and
+  //     text cell, but two attribute-less `td.diff-line-number` cells (left,
+  //     then right) with the number as text and an empty cell for the
+  //     missing side.
+  //  3. Compare pages (classic server-rendered) — file container
+  //     `div.file[data-tagsearch-path]` holding a `table.diff-table`; plain
+  //     `<tr>` rows; two `td.blob-num` cells (left, then right) carrying
+  //     `data-line-number` when that side has one (hunk rows carry "...");
+  //     text in `td.blob-code` (or its `.blob-code-inner` child). The `+`/`-`
+  //     markers are CSS-generated from `data-code-marker`, so they never
+  //     appear in `textContent`.
+  // In every layout a context row has a number on both sides, so asking for
+  // `'left'` reconstructs the old content and `'right'` the new content.
 
   function getDiffFileContainers() {
-    return [...document.querySelectorAll('div[role="region"][id^="diff-"][aria-labelledby]')]
-      .map((root) => {
-        const heading = document.getElementById(root.getAttribute('aria-labelledby') || '');
-        const filePath = (heading?.querySelector('code')?.textContent ?? '').replace(/\u200E/gi, '').trim();
+    const containers = [];
+    document.querySelectorAll('div[role="region"][aria-labelledby]').forEach((root) => {
+      const heading = document.getElementById(root.getAttribute('aria-labelledby') || '');
+      containers.push({ root, filePath: heading?.querySelector('code')?.textContent ?? '' });
+    });
+    document.querySelectorAll('div.file[data-tagsearch-path]').forEach((root) => {
+      containers.push({ root, filePath: root.getAttribute('data-tagsearch-path') ?? '' });
+    });
+    return containers
+      .map(({ root, filePath: rawPath }) => {
+        const filePath = rawPath.replace(/\u200E/gi, '').trim();
         const kind = getFileKind(filePath);
-        if (!kind) return null;
-        return { filePath, kind, containerId: root.id, root };
+        return kind ? { filePath, kind, root } : null;
       })
       .filter(Boolean);
   }
 
-  function collectDiffEntries(root, side) {
-    const entries = [];
-    root.querySelectorAll('tr.diff-line-row').forEach((row) => {
-      const numCell = row.querySelector(`td.new-diff-line-number[data-diff-side="${side}"][data-line-number]`);
-      if (!numCell) return;
-      const lineNumber = parseInt(numCell.getAttribute('data-line-number'), 10);
-      if (Number.isNaN(lineNumber)) return;
-      const codeCell = row.querySelector('td.diff-text-cell[data-line-number]');
-      const textEl = codeCell?.querySelector('.diff-text-inner');
-      entries.push({ lineNumber, text: textEl?.textContent ?? '', row });
-    });
-    return entries;
+  function getDiffRows(root) {
+    return root.querySelectorAll('tr.diff-line-row, table.diff-table tr');
   }
 
-  function getDiffLineNumberAnchor(root, lineNumber) {
-    return root.querySelector(`td.new-diff-line-number[data-diff-side="right"][data-line-number="${lineNumber}"]`);
+  // Resolves a row's line-number cell for one side (`'left'` = old file,
+  // `'right'` = new file) as `{ cell, lineNumber }`, or null when the row
+  // has no number on that side (a pure addition/deletion, or a hunk header).
+  function getRowLineNumber(row, side) {
+    const attrCell = row.querySelector(`td.new-diff-line-number[data-diff-side="${side}"][data-line-number]`);
+    if (attrCell) {
+      const n = parseInt(attrCell.getAttribute('data-line-number'), 10);
+      return Number.isNaN(n) ? null : { cell: attrCell, lineNumber: n };
+    }
+    const cells = row.querySelectorAll('td.diff-line-number, td.blob-num');
+    if (cells.length < 2) return null;
+    const cell = cells[side === 'left' ? 0 : 1];
+    const raw = cell.hasAttribute('data-line-number') ? cell.getAttribute('data-line-number') : cell.textContent;
+    const n = parseInt(raw.trim(), 10);
+    return Number.isNaN(n) ? null : { cell, lineNumber: n };
+  }
+
+  function getRowText(row) {
+    const reactText = row.querySelector('td.diff-text-cell .diff-text-inner');
+    if (reactText) return reactText.textContent ?? '';
+    const classicCell = row.querySelector('td.blob-code');
+    if (!classicCell) return '';
+    return (classicCell.querySelector('.blob-code-inner') ?? classicCell).textContent ?? '';
+  }
+
+  // Entries carry the row (for `extractDiffOldCode`) and the side's
+  // line-number cell (`numCell`, the badge anchor for that line).
+  function collectDiffEntries(root, side) {
+    const entries = [];
+    getDiffRows(root).forEach((row) => {
+      const num = getRowLineNumber(row, side);
+      if (!num) return;
+      entries.push({ lineNumber: num.lineNumber, text: getRowText(row), row, numCell: num.cell });
+    });
+    return entries;
   }
 
   // Given a block found on the "new" side, checks whether its fence lines
@@ -283,12 +324,12 @@
     const closeRow = newEntries[block.endIndex]?.row;
     if (!openRow || !closeRow) return null;
 
-    const oldStartCell = openRow.querySelector('td.new-diff-line-number[data-diff-side="left"][data-line-number]');
-    const oldEndCell = closeRow.querySelector('td.new-diff-line-number[data-diff-side="left"][data-line-number]');
-    if (!oldStartCell || !oldEndCell) return null;
+    const oldStart = getRowLineNumber(openRow, 'left');
+    const oldEnd = getRowLineNumber(closeRow, 'left');
+    if (!oldStart || !oldEnd) return null;
 
-    const oldStartLine = parseInt(oldStartCell.getAttribute('data-line-number'), 10);
-    const oldEndLine = parseInt(oldEndCell.getAttribute('data-line-number'), 10);
+    const oldStartLine = oldStart.lineNumber;
+    const oldEndLine = oldEnd.lineNumber;
 
     return oldEntries
       .filter((e) => e.lineNumber > oldStartLine && e.lineNumber < oldEndLine)
@@ -306,7 +347,7 @@
 
       const oldEntries = collectDiffEntries(root, 'left');
       blocks.forEach((block) => {
-        const anchor = getDiffLineNumberAnchor(root, block.startLine);
+        const anchor = newEntries[block.startIndex]?.numCell;
         if (!anchor) return;
         const key = `diff:${filePath}:${block.startLine}`;
         seenKeys.add(key);

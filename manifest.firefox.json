@@ -26,7 +26,12 @@
   "permissions": ["activeTab"],
   "content_scripts": [
     {
-      "matches": ["https://github.com/*/blob/*", "https://github.com/*/pull/*", "https://github.com/*/commit/*"],
+      "matches": [
+        "https://github.com/*/blob/*",
+        "https://github.com/*/pull/*",
+        "https://github.com/*/commit/*",
+        "https://github.com/*/compare/*"
+      ],
       "js": ["pako_deflate.min.js", "content_script.js"],
       "css": ["viewer.css"],
       "run_at": "document_idle"
