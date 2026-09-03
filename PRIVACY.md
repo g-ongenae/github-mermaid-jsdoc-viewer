@@ -8,7 +8,7 @@ GitHub Mermaid JSDoc Viewer is a browser extension that finds ` ```mermaid ` fen
 
 **The extension does not collect, store, sell, or share any data.** There is no backend server, no analytics, no telemetry, no crash reporting, and no account.
 
-- It runs only on `https://github.com` pages whose URL matches a source file (`/blob/`), a pull request (`/pull/`), a commit (`/commit/`) or a branch comparison (`/compare/`).
+- It runs only on `https://github.com` pages. Because GitHub navigates client-side (Turbo), the script has to be present on every github.com page, but it stays idle everywhere except on source files (`/blob/`), pull requests (`/pull/`), commits (`/commit/`) and branch comparisons (`/compare/`).
 - Scanning happens entirely locally: the extension reads the source lines already rendered on the page you are viewing and looks for mermaid fences. Nothing is sent anywhere at this stage.
 - No GitHub login, token or API is used. The extension works the same on public and private repositories because it only reads what your browser has already displayed.
 
@@ -31,10 +31,11 @@ None. The extension uses no `localStorage`, `sessionStorage`, cookies, IndexedDB
 
 ## Permissions
 
-| Permission                                                                               | Why it is needed                                                                                                          |
-| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `activeTab`                                                                              | Lets the toolbar popup read the current tab's URL to tell you whether the extension is active on this page. Nothing else. |
-| Content script on `https://github.com/*/blob/*`, `/pull/*`, `/commit/*` and `/compare/*` | Reads the code already rendered on those pages to find mermaid fences and overlays the badge and the preview modal.       |
+The extension requests **no permissions**. The toolbar popup learns whether the current page is supported by messaging the content script, not by reading the tab's URL.
+
+| Access                                   | Why it is needed                                                                                                                                                                                                                                                |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Content script on `https://github.com/*` | Needed on all github.com pages because GitHub navigates client-side without reloading; it reads the code already rendered on file, PR, commit and compare pages to find mermaid fences, and overlays the badge and the preview modal. No other site is touched. |
 
 ## Third-party code
 

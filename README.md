@@ -38,7 +38,7 @@ flowchart LR
 
 Extension files: `manifest.{firefox,chrome}.json` · `content_script.js` · `viewer.css` · `pako_deflate.min.js` · `popup.{html,js}` · `icons/`
 
-Permissions required: `activeTab` (for the popup's status check) only. The content script is declared for `https://github.com/*/blob/*`, `/pull/*`, `/commit/*` and `/compare/*` — no other host permission is requested.
+Permissions required: **none**. The content script is declared for `https://github.com/*` — GitHub navigates client-side (Turbo) without reloading, so the script must already be present when you reach a file, PR, commit or compare page; it stays idle on every other GitHub page. The popup asks the content script whether the current page is supported instead of reading the tab URL.
 
 ---
 
@@ -189,7 +189,7 @@ Replace `VERSION` with the version pinned in `package-lock.json` (`npm ls pako`)
 
 ### Chrome Web Store
 
-In the **Privacy practices** tab: single purpose = preview Mermaid diagrams found in JSDoc comments on GitHub; `activeTab` justification = the popup reads the current tab's URL to show whether the extension is active there; host access = the content script runs on GitHub blob/PR/commit pages to find mermaid fences; remote code = **No**; data usage = **Website content** is _not_ collected by the developer, but disclose in the description that the clicked diagram's text is sent to mermaid.ink/mermaid.live for rendering. Privacy policy URL: <https://github.com/g-ongenae/github-mermaid-jsdoc-viewer/blob/main/PRIVACY.md>. Store icon: `icons/icon-128.png`.
+In the **Privacy practices** tab: single purpose = preview Mermaid diagrams found in JSDoc comments on GitHub; no permissions are requested; host access justification = GitHub uses client-side (Turbo) navigation, so the content script must be present on all github.com pages to detect when the user reaches a file, PR, commit or compare page; it only reads the code rendered on those pages to find mermaid fences, and touches no other site; remote code = **No**; data usage = **Website content** is _not_ collected by the developer, but disclose in the description that the clicked diagram's text is sent to mermaid.ink/mermaid.live for rendering. Privacy policy URL: <https://github.com/g-ongenae/github-mermaid-jsdoc-viewer/blob/main/PRIVACY.md>. Store icon: `icons/icon-128.png`.
 
 ---
 
