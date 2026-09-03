@@ -109,10 +109,12 @@
     <div class="section">
       <div class="section-title">Quick start</div>
       <ol class="usage-steps">
-        <li>Open any <code class="shortcut">.js/.ts</code> file on GitHub ("blob" view)</li>
-        <li>Look for the action bar under a <code class="shortcut">```mermaid</code> fence in a JSDoc comment</li>
-        <li>Click <strong>Display diagram</strong> to preview it inline</li>
-        <li>Click <strong>Open in Mermaid Live</strong> to edit it in the full editor</li>
+        <li>
+          Open a <code class="shortcut">.js/.ts</code> or Markdown file on GitHub, or a PR "Files changed" / commit page
+        </li>
+        <li>A 📊 badge appears next to the line number of each <code class="shortcut">```mermaid</code> fence</li>
+        <li>Click it to preview the diagram (🔀 = the diagram changed in this diff — shows before/after)</li>
+        <li>Click <strong>Open in Mermaid Live ↗</strong> to edit it in the full editor</li>
       </ol>
     </div>
 
@@ -121,11 +123,22 @@
       <div class="description">Scroll to zoom, drag to pan, double-click to reset.</div>
     </div>
 
+    <div class="section">
+      <div class="section-title">Privacy</div>
+      <div class="description">
+        Nothing is collected. The diagram text is sent to mermaid.ink / mermaid.live only when you click a badge or
+        link.
+      </div>
+    </div>
+
     <div class="status" id="status"></div>
 
     <div class="links">
       <a href="https://github.com/g-ongenae/github-mermaid-jsdoc-viewer" target="_blank">Source code</a>
       <a href="https://github.com/g-ongenae/github-mermaid-jsdoc-viewer/issues" target="_blank">Report an issue</a>
+      <a href="https://github.com/g-ongenae/github-mermaid-jsdoc-viewer/blob/main/PRIVACY.md" target="_blank"
+        >Privacy</a
+      >
     </div>
 
     <script src="popup.js"></script>

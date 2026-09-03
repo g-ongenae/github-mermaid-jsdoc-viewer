@@ -16,6 +16,7 @@ manifest.chrome.json    — Chrome/Edge/Brave (MV3)
 manifest.firefox.json   — Firefox (MV2)
 manifest.json           — Generated copy of the active manifest (gitignored)
 icon.svg                — Extension icon (shared design with mermaid-jsdoc-viewer — see "Icon" below)
+PRIVACY.md              — Privacy policy linked from both store listings; keep in sync with what the code actually sends
 LICENSE                 — MIT license for this project
 PAKO_LICENSE            — pako's license, also built by scripts/build-pako.js — not committed
 ```

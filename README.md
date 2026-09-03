@@ -2,7 +2,7 @@
 
 A browser (Chrome, Firefox & Safari) extension that finds [Mermaid](https://mermaid.js.org/) diagrams inside JSDoc comments while you browse source files on GitHub, and lets you preview them inline or open them in the full [Mermaid Live](https://mermaid.live) editor.
 
-No GitHub login required. No API calls except to `mermaid.ink` (for the inline preview image) and `mermaid.live` (when you click "Open in Mermaid Live" from the preview). Fully client-side otherwise.
+No GitHub login required. No data collected. The only network requests are to `mermaid.ink` (for the inline preview image) and `mermaid.live` (when you click "Open in Mermaid Live" from the preview), and both happen only when you click — see [PRIVACY.md](./PRIVACY.md).
 
 This is the "watch it inside GitHub" counterpart to [`mermaid-jsdoc-viewer`](https://github.com/g-ongenae/mermaid-jsdoc-viewer), a VS Code extension that does the same thing for diagrams you're editing locally.
 
@@ -150,9 +150,16 @@ github-mermaid-jsdoc-viewer/
 ├── pako_deflate.min.js     # Built by `npm install`/`npm run build` — not committed
 ├── popup.html / popup.js   # Toolbar popup (extension info, status check)
 ├── icon.svg                # Extension icon (shared design with mermaid-jsdoc-viewer)
+├── PRIVACY.md              # Privacy policy (linked from the store listings)
 ├── LICENSE                 # MIT license for this project
 └── PAKO_LICENSE            # pako's license — also built, not committed
 ```
+
+---
+
+## Privacy
+
+The extension collects nothing and has no server. The text of a mermaid diagram is sent to `mermaid.ink` (preview image) or `mermaid.live` (editor) **only when you click** its badge or link — nothing else on the page is transmitted. Full details in [PRIVACY.md](./PRIVACY.md).
 
 ---
 
