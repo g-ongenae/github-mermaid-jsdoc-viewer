@@ -1,7 +1,8 @@
 // content_script.js
 // Injected on GitHub blob pages and PR/commit diff pages. Finds ```mermaid
-// fenced code blocks inside JSDoc comments and overlays a small floating
-// badge next to the line number that opens a diagram preview.
+// fenced code blocks — inside JSDoc comments in JS/TS files, or as plain
+// fenced blocks in Markdown files — and overlays a small floating badge next
+// to the line number that opens a diagram preview.
 //
 // Requires pako_deflate.min.js (vendored, exposes the global `pako`) to be
 // loaded before this script — see manifest.{chrome,firefox}.json.
@@ -14,7 +15,18 @@
 // both problems.
 
 (function () {
-  const SUPPORTED_EXT = /\.(m?jsx?|tsx?)$/i;
+  // Two kinds of file are scanned: JS/TS sources, where a mermaid fence must
+  // sit inside a `/** ... */` JSDoc comment, and Markdown files, where the
+  // fence is a plain top-level code block.
+  const JSDOC_EXT = /\.(m?jsx?|tsx?)$/i;
+  const MARKDOWN_EXT = /\.(md|markdown|mdx)$/i;
+
+  // Returns 'jsdoc' | 'markdown' | null for a file path (or URL pathname).
+  function getFileKind(path) {
+    if (JSDOC_EXT.test(path)) return 'jsdoc';
+    if (MARKDOWN_EXT.test(path)) return 'markdown';
+    return null;
+  }
 
   // ── JSDoc / mermaid block parsing ──────────────────────────────────────
   // Same JSDoc-region + fence-tracking state machine as mermaid-jsdoc-viewer
@@ -27,15 +39,35 @@
     return line.replace(/^\s*\*\s?/, '');
   }
 
+  // Turns a raw source line into a diagram line: JSDoc body lines lose their
+  // leading ` * `, Markdown lines are kept as-is. Trailing whitespace goes
+  // either way.
+  function normalizeDiagramLine(text, kind) {
+    const content = kind === 'jsdoc' ? stripJsDocPrefix(text) : text;
+    return content.replace(/\s+$/, '');
+  }
+
+  // A JSDoc *body* line (` * foo`, ` *`) — not the `/**` opener nor the
+  // ` */` closer. Used to recognise a diff hunk that starts in the middle of
+  // a comment: GitHub's default 3 lines of context often begin at the
+  // ` * \`\`\`mermaid` fence itself, with the `/**` opener out of view.
+  function isJsDocBodyLine(trimmed) {
+    return /^\*(?![/*])/.test(trimmed);
+  }
+
   // `startIndex`/`endIndex` on each returned block are indices into
   // `numberedLines` for the fence-open/fence-close entries — blob-page
   // callers ignore them, diff-page scanning uses them to look up the row
   // elements backing a block, to reconstruct the pre-change diagram (see
   // `extractDiffOldCode`).
-  function findMermaidBlocksFromNumberedLines(numberedLines) {
+  //
+  // `kind` is 'jsdoc' (fences must be inside a `/** ... */` comment, and each
+  // line's leading ` * ` is stripped) or 'markdown' (plain fenced blocks).
+  function findMermaidBlocksFromNumberedLines(numberedLines, kind = 'jsdoc') {
     const blocks = [];
 
-    let inJsDoc = false;
+    // Markdown has no enclosing comment — treat the whole file as "inside".
+    let inJsDoc = kind !== 'jsdoc';
     let inMermaid = false;
     let mermaidStartLine = -1;
     let mermaidStartIndex = -1;
@@ -45,8 +77,9 @@
     numberedLines.forEach(({ lineNumber, text }, index) => {
       // A gap means lines are missing (not yet mounted, or a hunk/file
       // boundary) — anything we were mid-parsing can't be trusted.
-      if (prevLineNumber !== null && lineNumber !== prevLineNumber + 1) {
-        inJsDoc = false;
+      const atSegmentStart = prevLineNumber === null || lineNumber !== prevLineNumber + 1;
+      if (atSegmentStart) {
+        inJsDoc = kind !== 'jsdoc';
         inMermaid = false;
       }
       prevLineNumber = lineNumber;
@@ -54,16 +87,27 @@
       const trimmed = text.trim();
 
       if (!inJsDoc) {
-        if (trimmed.startsWith('/**')) inJsDoc = true;
-        return;
+        if (trimmed.startsWith('/**')) {
+          inJsDoc = true;
+          return;
+        }
+        // A hunk (or partially mounted view) that begins on a ` * ...` line
+        // is already inside a comment whose `/**` opener we can't see.
+        // Assume so and keep going — a fence is still required before
+        // anything is reported, so a wrong guess costs nothing.
+        if (atSegmentStart && isJsDocBodyLine(trimmed)) {
+          inJsDoc = true;
+        } else {
+          return;
+        }
       }
 
-      if (trimmed.endsWith('*/') && !inMermaid) {
+      if (kind === 'jsdoc' && trimmed.endsWith('*/') && !inMermaid) {
         inJsDoc = false;
         return;
       }
 
-      const content = stripJsDocPrefix(text).replace(/\s+$/, '');
+      const content = normalizeDiagramLine(text, kind);
 
       if (!inMermaid) {
         if (content.trim().startsWith('```mermaid')) {
@@ -172,12 +216,13 @@
   }
 
   function scanBlobPage(seenKeys) {
-    if (!SUPPORTED_EXT.test(location.pathname)) return;
+    const kind = getFileKind(location.pathname);
+    if (!kind) return;
 
     const numberedLines = getBlobNumberedLines();
     if (!numberedLines) return;
 
-    const blocks = findMermaidBlocksFromNumberedLines(numberedLines);
+    const blocks = findMermaidBlocksFromNumberedLines(numberedLines, kind);
     blocks.forEach((block) => {
       const anchor = getBlobLineAnchor(block.startLine);
       if (!anchor) return;
@@ -203,8 +248,9 @@
       .map((root) => {
         const heading = document.getElementById(root.getAttribute('aria-labelledby') || '');
         const filePath = (heading?.querySelector('code')?.textContent ?? '').replace(/\u200E/gi, '').trim();
-        if (!filePath || !SUPPORTED_EXT.test(filePath)) return null;
-        return { filePath, containerId: root.id, root };
+        const kind = getFileKind(filePath);
+        if (!kind) return null;
+        return { filePath, kind, containerId: root.id, root };
       })
       .filter(Boolean);
   }
@@ -232,7 +278,7 @@
   // number) and, if so, reconstructs what the diagram looked like there.
   // Returns null when the block was newly added (fences have no old-side
   // counterpart) or when either boundary row can't be resolved.
-  function extractDiffOldCode(newEntries, oldEntries, block) {
+  function extractDiffOldCode(newEntries, oldEntries, block, kind) {
     const openRow = newEntries[block.startIndex]?.row;
     const closeRow = newEntries[block.endIndex]?.row;
     if (!openRow || !closeRow) return null;
@@ -246,16 +292,16 @@
 
     return oldEntries
       .filter((e) => e.lineNumber > oldStartLine && e.lineNumber < oldEndLine)
-      .map((e) => stripJsDocPrefix(e.text).replace(/\s+$/, ''))
+      .map((e) => normalizeDiagramLine(e.text, kind))
       .join('\n');
   }
 
   function scanDiffPage(seenKeys) {
-    getDiffFileContainers().forEach(({ filePath, root }) => {
+    getDiffFileContainers().forEach(({ filePath, kind, root }) => {
       const newEntries = collectDiffEntries(root, 'right');
       if (!newEntries.length) return;
 
-      const blocks = findMermaidBlocksFromNumberedLines(newEntries);
+      const blocks = findMermaidBlocksFromNumberedLines(newEntries, kind);
       if (!blocks.length) return;
 
       const oldEntries = collectDiffEntries(root, 'left');
@@ -264,7 +310,7 @@
         if (!anchor) return;
         const key = `diff:${filePath}:${block.startLine}`;
         seenKeys.add(key);
-        const oldCode = extractDiffOldCode(newEntries, oldEntries, block);
+        const oldCode = extractDiffOldCode(newEntries, oldEntries, block, kind);
         placeBadge(key, anchor, { newCode: block.code, oldCode });
       });
     });
