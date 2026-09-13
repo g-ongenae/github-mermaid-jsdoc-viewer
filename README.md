@@ -44,6 +44,11 @@ Permissions required: **none**. The content script is declared for `https://gith
 
 ## Installation
 
+- Install on Chrome: [Chrome Web Store](https://chromewebstore.google.com/detail/github-mermaid-jsdoc-view/jhkfjpfhioaoopiapaipleecedggpimi)
+- Install on Firefox: [Firefox Addons](https://addons.mozilla.org/fr/firefox/addon/github-mermaid-jsdoc-viewer/)
+
+## Build
+
 Requires [Node.js](https://nodejs.org/) 26+ for the one-time build step (`npm install`), which fetches and places `pako_deflate.min.js` — the extension won't load without it.
 
 The extension ships two manifest files — pick the one for your browser:
@@ -178,18 +183,6 @@ zip -r extension.zip manifest.json content_script.js viewer.css pako_deflate.min
 ```
 
 The `icons/*.png` files are pre-rendered from `icon.svg`; regenerate them (e.g. with [resvg](https://github.com/linebender/resvg) or Inkscape) if the SVG changes. Chrome does not accept SVG icons, so the manifests reference the PNGs.
-
-### Firefox (addons.mozilla.org) — notes for reviewers
-
-The only minified file is `pako_deflate.min.js`, an **unmodified** copy of the third-party [pako](https://github.com/nodeca/pako) library. Per Mozilla's [third-party library policy](https://extensionworkshop.com/documentation/publish/third-party-library-usage/), no source-code submission is needed for it — instead, give the reviewer the exact origin so they can compare checksums. Suggested "Notes for reviewers":
-
-> All first-party code (`content_script.js`, `popup.js`, `viewer.css`, `popup.html`) is shipped unminified — the zip is the source. The only minified file is `pako_deflate.min.js`, an unmodified copy of `dist/pako_deflate.min.js` from the official npm package `pako@<version from package-lock.json>` (<https://registry.npmjs.org/pako/-/pako-VERSION.tgz>, readable source at <https://github.com/nodeca/pako/tree/VERSION>). It is copied by `scripts/build-pako.js` at `npm install` time, not bundled or transformed. No remote code is loaded. The extension collects no data (`data_collection_permissions: none`); the diagram text is sent to `mermaid.ink` / `mermaid.live` only when the user clicks a badge or link (disclosed in the listing and in `PRIVACY.md`). To test: open <https://github.com/g-ongenae/github-mermaid-jsdoc-viewer/blob/main/examples/order-flow.js> (or any JS/TS file with a ` ```mermaid ` fence inside a `/** */` comment) and click the 📊 badge next to the fence's line number.
-
-Replace `VERSION` with the version pinned in `package-lock.json` (`npm ls pako`). Because pako is minified but third-party, answer **No** to "Do you need to submit source code?" and rely on the note above; if a reviewer asks anyway, the build is reproducible with `npm ci` (Node 26, see `engines`), which is the only build step.
-
-### Chrome Web Store
-
-In the **Privacy practices** tab: single purpose = preview Mermaid diagrams found in JSDoc comments on GitHub; no permissions are requested; host access justification = GitHub uses client-side (Turbo) navigation, so the content script must be present on all github.com pages to detect when the user reaches a file, PR, commit or compare page; it only reads the code rendered on those pages to find mermaid fences, and touches no other site; remote code = **No**; data usage = **Website content** is _not_ collected by the developer, but disclose in the description that the clicked diagram's text is sent to mermaid.ink/mermaid.live for rendering. Privacy policy URL: <https://github.com/g-ongenae/github-mermaid-jsdoc-viewer/blob/main/PRIVACY.md>. Store icon: `icons/icon-128.png`.
 
 ---
 
